@@ -122,7 +122,16 @@ def create_output_images(Rover):
       tot_map_pix = np.float(len((Rover.ground_truth[:,:,1].nonzero()[0])))
       # Calculate the percentage of ground truth map that has been successfully found
       perc_mapped = round(100*good_nav_pix/tot_map_pix, 1)
-      # Calculate the number of good map pixel detections divided by total pixels 
+      # update percents to avoid looping
+      if Rover.total_time > 150:
+        totaltime = int(Rover.total_time)
+        if (totaltime % 50) == 0:
+            dt = totaltime / 50
+            if (dt % 2) == 0:
+                Rover.map_percent1 = perc_mapped
+            else:
+                Rover.map_percent2 = perc_mapped
+      # Calculate the number of good map pixel detections divided by total pixels
       # found to be navigable terrain
       if tot_nav_pix > 0:
             fidelity = round(100*good_nav_pix/(tot_nav_pix), 1)
@@ -156,5 +165,12 @@ def create_output_images(Rover):
 
       return encoded_string1, encoded_string2
 
+# check whether it's close to black list
+blacklist_x = 148.3
+blacklist_y = 109.2
+def is_close_blacklist(pos_x, pos_y):
+    global blacklist_x
+    global blacklist_y
+    return np.fabs(pos_x - blacklist_x) <= 3.5 and np.abs(pos_y - blacklist_y) <= 3.5
 
 

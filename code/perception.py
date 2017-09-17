@@ -1,6 +1,8 @@
 import numpy as np
 import cv2
 
+from supporting_functions import is_close_blacklist
+
 # Identify pixels above the threshold
 # Threshold of RGB > 160 does a nice job of identifying ground pixels only
 def color_thresh(img, rgb_thresh=(160, 160, 160)):
@@ -98,6 +100,18 @@ def pix_to_world(xpix, ypix, xpos, ypos, yaw, world_size, scale):
     # Return the result
     return x_pix_world, y_pix_world
 
+# utility to check whether a rock is reachable
+def is_rock_reachable(rock_angle, nav_angles):
+    result = False
+    if nav_angles is not None and len(nav_angles) > 1:
+        ang_min = min(nav_angles)
+        ang_max = max(nav_angles)
+        result = (rock_angle >= ang_min) and (rock_angle <= ang_max)
+    
+    if result == False:
+        print("rock_angle:", rock_angle, " nav_angles:", nav_angles)
+    return result
+
 # Define a function to perform a perspective transform
 def perspect_transform(img, src, dst):
     M = cv2.getPerspectiveTransform(src, dst)
@@ -175,16 +189,31 @@ def perception_step(Rover):
         xpix_rocks, ypix_rocks = rover_coords(rocks)
         rock_x_world, rock_y_world = pix_to_world(xpix_rocks, ypix_rocks, Rover.pos[0], Rover.pos[1], Rover.yaw, world_size, scale)
         rock_dist, rock_ang = to_polar_coords(xpix_rocks, ypix_rocks)
-        rock_idx = np.argmin(rock_dist)
+        rock_idx = 0
+        if len(rock_dist) > 1:
+            rock_idx = np.argmin(rock_dist)
         rock_xcen = rock_x_world[rock_idx]
         rock_ycen = rock_y_world[rock_idx]
+        # try to avoid trap (black list)
+        if is_close_blacklist(rock_xcen, rock_ycen):
+            print("HIT blacklist rock_xcen:", rock_xcen, " rock_ycen:", rock_ycen)
+            if len(rock_dist) == 1:
+                Rover.rock_picked_pos[0] = rock_xcen
+                Rover.rock_picked_pos[1] = rock_ycen
+            else:
+                rock_idx -= 1
+                rock_xcen = rock_x_world[rock_idx]
+                rock_ycen = rock_y_world[rock_idx]
+        
         Rover.worldmap[rock_ycen, rock_xcen, 1] = 255
         Rover.vision_image[:,:,1] = rocks * 255
         # go after rock
         Rover.nearest_rock_angle = None
-        if np.fabs(rock_ang[rock_idx]) > 0.2 and \
-            np.fabs(rock_dist[rock_idx]) > 6.5 and \
-            np.fabs(Rover.rock_picked_pos[0] - rock_xcen) > 8.0 and \
+            #if np.fabs(rock_ang[rock_idx]) > 0.2 and \
+            #np.fabs(rock_dist[rock_idx]) > 6.5 and \
+            #np.fabs(Rover.rock_picked_pos[0] - rock_xcen) > 8.0 and \
+            #np.fabs(Rover.rock_picked_pos[1] - rock_ycen) > 8.0:
+        if np.fabs(Rover.rock_picked_pos[0] - rock_xcen) > 8.0 and \
             np.fabs(Rover.rock_picked_pos[1] - rock_ycen) > 8.0:
             Rover.nearest_rock_angle = rock_ang[rock_idx]
             print("Go after rock rock dist:", rock_dist[rock_idx], " angle:", rock_ang[rock_idx], " rock_ycen:", rock_ycen, " rock_xcen:", rock_xcen)

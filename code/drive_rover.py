@@ -52,7 +52,7 @@ class RoverState():
         self.nav_angles = None # Angles of navigable terrain pixels
         self.nav_dists = None # Distances of navigable terrain pixels
         self.ground_truth = ground_truth_3d # Ground truth worldmap
-        self.mode = 'forward' # Current mode (can be forward or stop)
+        self.mode = 'forward' # Current mode (can be forward,stop, or stuck)
         self.throttle_set = 0.2 # Throttle setting when accelerating
         self.brake_set = 10 # Brake setting when braking
         # The stop_forward and go_forward fields below represent total count
@@ -79,7 +79,12 @@ class RoverState():
         self.send_pickup = False # Set to True to trigger rock pickup
         self.nearest_rock_angle = None # the nearest rock angle
         self.rock_picked_pos = [0, 0] # last rock picked position
-            
+        self.retry_count = 0 # count of tries to get out of stuck
+        self.stuck_time = None # timestamp that Robo got stuck
+        self.stuck_pos = None # position that Robo got stuck
+        self.map_percent1 = -1 # percent of map covered
+        self.map_percent2 = 0
+    
     def has_rock_been_collected(self, rock_x, rock_y):
         #dbg
         if self.samples_collected > 0:
